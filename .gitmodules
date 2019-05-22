@@ -1,0 +1,15 @@
+[submodule "externals/CrossWindow"]
+	path = externals/CrossWindow
+	url = https://github.com/alaingalvan/CrossWindow
+[submodule "externals/imgui"]
+	path = externals/imgui
+	url = https://github.com/ocornut/imgui
+[submodule "external/glm"]
+	path = external/glm
+	url = git@github.com:g-truc/glm.git
+[submodule "external/CrossWindow"]
+	path = external/CrossWindow
+	url = git@github.com:alaingalvan/CrossWindow.git
+[submodule "external/imgui"]
+	path = external/imgui
+	url = git@github.com:ocornut/imgui.git
