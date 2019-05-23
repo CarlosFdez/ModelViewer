@@ -45,6 +45,8 @@ public:
 
 private:
 	// Reads all adapters. Corresponds to display out devices
+	void updateRenderTarget();
+	void updateViewport();
 	std::vector<AdapterData> readAdapters();
 
 	HWND hwnd;
@@ -66,5 +68,5 @@ private:
 	D3D_FEATURE_LEVEL featureLevel;
 	D3D11_VIEWPORT viewport;
 
-	ID3D11RenderTargetView* renderTargetView = nullptr;
+	ComPtr<ID3D11RenderTargetView> renderTargetView;
 };

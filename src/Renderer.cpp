@@ -12,9 +12,6 @@ inline void ThrowIfFailed(HRESULT hr)
 	}
 }
 
-// If the pointer to the IUnknown base type is not null, called Release() and set to null.
-#define SAFE_RELEASE(x) if (x != nullptr) { x->Release(); x = nullptr; }
-
 Renderer::Renderer(HWND hwnd, unsigned width, unsigned height) : hwnd{ hwnd }, width{ width }, height{ height }
 {
 	// Init DXGI factory
@@ -52,13 +49,6 @@ Renderer::Renderer(HWND hwnd, unsigned width, unsigned height) : hwnd{ hwnd }, w
 		&this->context
 	));
 
-	// Init viewport
-	viewport.TopLeftX = viewport.TopLeftY = 0;
-	viewport.Width = static_cast<float>(width);
-	viewport.Height = static_cast<float>(height);
-	viewport.MinDepth = D3D11_MIN_DEPTH;
-	viewport.MaxDepth = D3D11_MAX_DEPTH;
-
 	unsigned refreshFrequency = 60; // todo: configure.
 
 	// the swapchain is used to control the presentation of the backbuffer
@@ -69,7 +59,7 @@ Renderer::Renderer(HWND hwnd, unsigned width, unsigned height) : hwnd{ hwnd }, w
 			width,
 			height,
 			{refreshFrequency, 1u},
-			DXGI_FORMAT_B8G8R8A8_UNORM_SRGB,
+			DXGI_FORMAT_R8G8B8A8_UNORM,
 			DXGI_MODE_SCANLINE_ORDER_UNSPECIFIED,
 			DXGI_MODE_SCALING_UNSPECIFIED
 		}, // BUFFER DESC
@@ -83,34 +73,18 @@ Renderer::Renderer(HWND hwnd, unsigned width, unsigned height) : hwnd{ hwnd }, w
 	};
 	ThrowIfFailed(factory->CreateSwapChain(device.Get(), &swapchainDesc, swapchain.GetAddressOf()));
 
-	// Get the backbuffer of the swap chain
-	// The backbuffer is a resource where the render target view points to
+	// Get the backbuffer of the swap chain (what we render to)
 	ThrowIfFailed(swapchain->GetBuffer(0, IID_PPV_ARGS(backbuffer.GetAddressOf())));
 
 	// TODO: DEPTH BUFFER? STENCIL STATE?
 
-	// Create view discription for the render target. NO CLUE HOW TO CONFIGURE YET OR WHAT IT MEANS
-	D3D11_RENDER_TARGET_VIEW_DESC renderTargetViewDesc;
-	renderTargetViewDesc.Format = DXGI_FORMAT_B8G8R8A8_UNORM_SRGB;
-	renderTargetViewDesc.ViewDimension = D3D11_RTV_DIMENSION_TEXTURE2D;
-	D3D11_TEX2D_RTV renderTargetMipLevelDesc = { 0u };
-	renderTargetViewDesc.Texture2D = renderTargetMipLevelDesc;
-
-	// Create the render target. Will be used to render to
-	ThrowIfFailed(device->CreateRenderTargetView(
-		backbuffer.Get(), // the resource where the render actually goes to (aka backbuffer)
-		&renderTargetViewDesc,
-		&renderTargetView
-	));
-
-	// Bind render target and viewport (todo: add depth stencil?)
-	context->OMSetRenderTargets(1, &renderTargetView, nullptr);
-	context->RSSetViewports(1, &viewport);
+	// create the render target
+	updateRenderTarget();
+	updateViewport();
 }
 
 Renderer::~Renderer()
 {
-	SAFE_RELEASE(renderTargetView);
 }
 
 void Renderer::setSize(unsigned width, unsigned height)
@@ -119,21 +93,69 @@ void Renderer::setSize(unsigned width, unsigned height)
 	this->width = width;
 	this->height = height;
 
-	DXGI_MODE_DESC newMode
-	{
-		this->width,
-		this->height,
-		{ 60u, 1u }, // refresh rate
-		DXGI_FORMAT_B8G8R8A8_UNORM_SRGB,
-		DXGI_MODE_SCANLINE_ORDER_UNSPECIFIED,
-		DXGI_MODE_SCALING_UNSPECIFIED
-	};
+	// note: resize target is disabled as the window is already resized by CrossWindow
+	// ResizeTarget also updates the window size. If we wanna use it, we need CrossWindow to not do resizing
+	//DXGI_MODE_DESC newMode
+	//{
+	//	this->width,
+	//	this->height,
+	//	{ 60u, 1u }, // refresh rate
+	//	DXGI_FORMAT_R8G8B8A8_UNORM,
+	//	DXGI_MODE_SCANLINE_ORDER_UNSPECIFIED,
+	//	DXGI_MODE_SCALING_UNSPECIFIED
+	//};
 
-	swapchain->ResizeTarget(&newMode);
-	swapchain->ResizeBuffers(1, width, height, 
+	//// resize the buffer. Using 0 for width and height makes the sizing automatic
+	//swapchain->ResizeTarget(&newMode);
+
+	// Release backbuffer and render target smart pointers
+	backbuffer = nullptr;
+	renderTargetView = nullptr;
+
+	swapchain->ResizeBuffers(1, 0, 0, 
 		DXGI_FORMAT_UNKNOWN, 
 		DXGI_SWAP_CHAIN_FLAG_ALLOW_MODE_SWITCH);
 
+	// Get the backbuffer of the swap chain (what we render to)
+	ThrowIfFailed(swapchain->GetBuffer(0, __uuidof(ID3D11Texture2D), (void**) backbuffer.GetAddressOf()));
+
+	// recreate the render target
+	updateRenderTarget();
+	updateViewport();
+}
+
+void Renderer::updateRenderTarget()
+{
+	// Create view discription for the render target. NO CLUE HOW TO CONFIGURE YET OR WHAT IT MEANS
+	D3D11_RENDER_TARGET_VIEW_DESC renderTargetViewDesc;
+	ZeroMemory(&renderTargetViewDesc, sizeof(D3D11_RENDER_TARGET_VIEW_DESC));
+	renderTargetViewDesc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
+	renderTargetViewDesc.ViewDimension = D3D11_RTV_DIMENSION_TEXTURE2D;
+	D3D11_TEX2D_RTV renderTargetMipLevelDesc = { 0u };
+	renderTargetViewDesc.Texture2D = renderTargetMipLevelDesc;
+
+	// Create the render target. Will be used to render to
+	ThrowIfFailed(device->CreateRenderTargetView(
+		backbuffer.Get(), // the resource where the render actually goes to (aka backbuffer)
+		&renderTargetViewDesc,
+		renderTargetView.GetAddressOf()
+	));
+
+	// Bind render target and viewport (todo: add depth stencil?)
+	context->OMSetRenderTargets(1, renderTargetView.GetAddressOf(), nullptr);
+}
+
+void Renderer::updateViewport()
+{
+	// Init viewport
+	viewport.TopLeftX = 0;
+	viewport.TopLeftY = 0;
+	viewport.Width = width;
+	viewport.Height = height;
+	viewport.MinDepth = D3D11_MIN_DEPTH;
+	viewport.MaxDepth = D3D11_MAX_DEPTH;
+
+	context->RSSetViewports(1, &viewport);
 }
 
 #include "loader.h"
@@ -161,7 +183,7 @@ void Renderer::render()
 {
 	// Clear background
 	float color[4] = { 0.0f, 0.0f, 1.0f, 1.0f };
-	context->ClearRenderTargetView(renderTargetView, color);
+	context->ClearRenderTargetView(renderTargetView.Get(), color);
 
 	renderTriangle();
 

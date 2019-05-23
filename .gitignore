@@ -3,3 +3,4 @@
 *.obj
 *.pdb
 build
+enc_temp_folder/
