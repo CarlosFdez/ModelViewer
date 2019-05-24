@@ -76,18 +76,113 @@ Renderer::Renderer(HWND hwnd, unsigned width, unsigned height) : hwnd{ hwnd }, w
 	// Get the backbuffer of the swap chain (what we render to)
 	ThrowIfFailed(swapchain->GetBuffer(0, IID_PPV_ARGS(backbuffer.GetAddressOf())));
 
-	// TODO: DEPTH BUFFER? STENCIL STATE?
-
-	// create the render target
+	// create the render target and viewport
 	updateRenderTarget();
 	updateViewport();
+
+	// Create the rasterizer state. This performs vertex transformations and culling
+	{
+		D3D11_RASTERIZER_DESC rasterizerDesc
+		{
+			D3D11_FILL_MODE::D3D11_FILL_SOLID,
+			D3D11_CULL_MODE::D3D11_CULL_BACK,
+			false, // draw clockwise
+			0,
+			0,
+			0,
+			0,
+			0,
+			0,
+			0,
+		};
+
+		ThrowIfFailed(device->CreateRasterizerState(
+			&rasterizerDesc,
+			rasterizerState.GetAddressOf()
+		));
+	}
+
+	// Create samplerstate (used to process textures)
+	{
+		D3D11_SAMPLER_DESC samplerDesc;
+		ZeroMemory(&samplerDesc, sizeof(D3D11_SAMPLER_DESC));
+		samplerDesc.Filter = D3D11_FILTER_MIN_MAG_POINT_MIP_LINEAR; // texture scaling?
+		samplerDesc.AddressU = D3D11_TEXTURE_ADDRESS_WRAP;
+		samplerDesc.AddressV = D3D11_TEXTURE_ADDRESS_WRAP;
+		samplerDesc.AddressW = D3D11_TEXTURE_ADDRESS_WRAP;
+		samplerDesc.ComparisonFunc = D3D11_COMPARISON_NEVER;
+		samplerDesc.MinLOD = 0;
+		samplerDesc.MaxLOD = D3D11_FLOAT32_MAX;
+
+		ThrowIfFailed(device->CreateSamplerState(
+			&samplerDesc,
+			samplerState.GetAddressOf()
+		));
+	}
+
+	// initializes the scene - todo: refactor this out for a dynamic set
+	initScene();
 }
 
 Renderer::~Renderer()
 {
 }
 
-void Renderer::setSize(unsigned width, unsigned height)
+void Renderer::initScene()
+{
+	// todo: shader and vertex buffer info needs to be passed in some way...static for now
+	pixelShader = loadPixelShader(device.Get(), "SimplePixelShader.hlsl");
+	vertexShader = loadVertexShader(device.Get(), "SimpleVertexShader.hlsl");
+
+	// note: vertices must be clockwise (or it'll fail)
+	Vertex triangleVertices[] = {
+		Vertex({-0.5f, -0.5f, 0}, { 1, 0, 0}),
+		Vertex({0.0f, 0.5f, 0}, { 0, 1, 0}),
+		Vertex({0.5f, -0.5f, 0}, { 0, 1, 1})
+	};
+	this->numVertices = ARRAYSIZE(triangleVertices);
+
+	unsigned short triangleIndices[] = { 0, 1, 2 };
+
+	D3D11_BUFFER_DESC vertexBufferDesc{
+		sizeof(Vertex) * this->numVertices,
+		D3D11_USAGE_DEFAULT,
+		D3D11_BIND_VERTEX_BUFFER,
+		0, 0, 0  // flags and stride all 0
+	};
+
+	D3D11_SUBRESOURCE_DATA vertexBufferData;
+	vertexBufferData.pSysMem = triangleVertices;
+	vertexBufferData.SysMemPitch = 0;
+	vertexBufferData.SysMemSlicePitch = 0;
+
+	ThrowIfFailed(device->CreateBuffer(
+		&vertexBufferDesc,
+		&vertexBufferData,
+		vertexBuffer.GetAddressOf()
+	));
+
+	static D3D11_BUFFER_DESC indexBufferDesc = {
+		sizeof(unsigned short) * ARRAYSIZE(triangleIndices),
+		D3D11_USAGE_DEFAULT,
+		D3D11_BIND_INDEX_BUFFER,
+		0, 0, 0 // flags and stride all 0
+	};
+
+	static D3D11_SUBRESOURCE_DATA indexBufferData = {
+		triangleIndices,
+		0,
+		0
+	};
+
+	ThrowIfFailed(device->CreateBuffer(
+		&indexBufferDesc,
+		&indexBufferData,
+		indexBuffer.GetAddressOf()
+	));
+}
+
+void Renderer::resize(unsigned width, unsigned height)
 {
 	// todo: determine whether we should resize the swapchain or recreate every time
 	this->width = width;
@@ -126,6 +221,32 @@ void Renderer::setSize(unsigned width, unsigned height)
 
 void Renderer::updateRenderTarget()
 {
+	// Create the Depth Stencil Buffer and view, 
+	// which is a "depth" buffer" used to control which pixels are visible at each point
+	D3D11_TEXTURE2D_DESC depthStencilBufferDesc;
+	depthStencilBufferDesc.Width = this->width;
+	depthStencilBufferDesc.Height = this->height;
+	depthStencilBufferDesc.MipLevels = 1;
+	depthStencilBufferDesc.ArraySize = 1;
+	depthStencilBufferDesc.Format = DXGI_FORMAT_D24_UNORM_S8_UINT;
+	depthStencilBufferDesc.SampleDesc.Count = 1;
+	depthStencilBufferDesc.SampleDesc.Quality = 0;
+	depthStencilBufferDesc.Usage = D3D11_USAGE_DEFAULT;
+	depthStencilBufferDesc.BindFlags = D3D11_BIND_DEPTH_STENCIL;
+	depthStencilBufferDesc.CPUAccessFlags = 0;
+	depthStencilBufferDesc.MiscFlags = 0;
+
+	ThrowIfFailed(device->CreateTexture2D(&depthStencilBufferDesc, nullptr, depthStencilBuffer.GetAddressOf()));
+	ThrowIfFailed(device->CreateDepthStencilView(depthStencilBuffer.Get(), nullptr, depthStencilView.GetAddressOf()));
+
+	D3D11_DEPTH_STENCIL_DESC depthStencilStateDesc;
+	ZeroMemory(&depthStencilStateDesc, sizeof(D3D11_DEPTH_STENCIL_DESC));
+	depthStencilStateDesc.DepthEnable = true;
+	depthStencilStateDesc.DepthWriteMask = D3D11_DEPTH_WRITE_MASK_ALL;
+	depthStencilStateDesc.DepthFunc = D3D11_COMPARISON_LESS_EQUAL;
+
+	ThrowIfFailed(device->CreateDepthStencilState(&depthStencilStateDesc, depthStencilState.GetAddressOf()));
+
 	// Create view discription for the render target. NO CLUE HOW TO CONFIGURE YET OR WHAT IT MEANS
 	D3D11_RENDER_TARGET_VIEW_DESC renderTargetViewDesc;
 	ZeroMemory(&renderTargetViewDesc, sizeof(D3D11_RENDER_TARGET_VIEW_DESC));
@@ -142,7 +263,7 @@ void Renderer::updateRenderTarget()
 	));
 
 	// Bind render target and viewport (todo: add depth stencil?)
-	context->OMSetRenderTargets(1, renderTargetView.GetAddressOf(), nullptr);
+	context->OMSetRenderTargets(1, renderTargetView.GetAddressOf(), depthStencilView.Get());
 }
 
 void Renderer::updateViewport()
@@ -157,9 +278,6 @@ void Renderer::updateViewport()
 
 	context->RSSetViewports(1, &viewport);
 }
-
-#include "loader.h"
-#include <glm/vec3.hpp>
 
 std::vector<AdapterData> Renderer::readAdapters()
 {
@@ -182,78 +300,14 @@ std::vector<AdapterData> Renderer::readAdapters()
 void Renderer::render()
 {
 	// Clear background
-	float color[4] = { 0.0f, 0.0f, 1.0f, 1.0f };
+	float color[4] = { 0.0f, 0.0f, 0.0f, 0.0f };
 	context->ClearRenderTargetView(renderTargetView.Get(), color);
-
-	renderTriangle();
-
-	// Finished rendering, present results
-	swapchain->Present((vsync) ? 1 : 0, 0);
-}
-
-void Renderer::renderTriangle()
-{
-	// todo: shader and vertex buffer info needs to be passed in some way...static for now
-	static auto pixelShader = loadFragmentShader(device.Get(), "SimplePixelShader.hlsl");
-	static auto vertexShader = loadVertexShader(device.Get(), "SimpleVertexShader.hlsl");
-
-	static glm::vec3 triangleVertices[] = {
-		glm::vec3(-0.5f, -0.5f, 0),
-		glm::vec3(0.0f, 0.5f, 0),
-		glm::vec3(0.5f, -0.5f, 0)
-	};
-
-	static unsigned short triangleIndices[] = { 0, 1, 2 };
-
-	static D3D11_BUFFER_DESC vertexBufferDesc{
-		sizeof(glm::vec3) * ARRAYSIZE(triangleVertices),
-		D3D11_USAGE_DEFAULT,
-		D3D11_BIND_VERTEX_BUFFER,
-		0, 0, 0  // flags and stride all 0
-	};
-
-	static D3D11_SUBRESOURCE_DATA vertexBufferData;
-	vertexBufferData.pSysMem = triangleVertices;
-	vertexBufferData.SysMemPitch = 0;
-	vertexBufferData.SysMemSlicePitch = 0;
-
-	static ComPtr<ID3D11Buffer> vertexBuffer;
-	if (vertexBuffer.Get() == nullptr)
-	{
-		ThrowIfFailed(device->CreateBuffer(
-			&vertexBufferDesc,
-			&vertexBufferData,
-			vertexBuffer.GetAddressOf()
-		));
-	}
-
-	static D3D11_BUFFER_DESC indexBufferDesc = {
-		sizeof(unsigned short) * ARRAYSIZE(triangleIndices),
-		D3D11_USAGE_DEFAULT,
-		D3D11_BIND_INDEX_BUFFER,
-		0, 0, 0 // flags and stride all 0
-	};
-
-	static D3D11_SUBRESOURCE_DATA indexBufferData = {
-		triangleIndices,
-		0,
-		0
-	};
-
-	static ComPtr<ID3D11Buffer> indexBuffer;
-	if (indexBuffer.Get() == nullptr)
-	{
-		ThrowIfFailed(device->CreateBuffer(
-			&indexBufferDesc,
-			&indexBufferData,
-			indexBuffer.GetAddressOf()
-		));
-	}
+	context->ClearDepthStencilView(depthStencilView.Get(), D3D11_CLEAR_DEPTH | D3D11_CLEAR_STENCIL, D3D11_MAX_DEPTH, 0);
 
 	// all of this is the triangle draw call
 	{
 		// Set the vertex buffer to active in the input assembler so it can be rendered.
-		unsigned stride = sizeof(glm::vec3);
+		unsigned stride = sizeof(Vertex);
 		unsigned offset = 0;
 
 		// Input assembler stage
@@ -263,11 +317,18 @@ void Renderer::renderTriangle()
 		context->IASetIndexBuffer(indexBuffer.Get(), DXGI_FORMAT_R16_UINT, 0);
 		context->IASetInputLayout(vertexShader->inputLayout.Get());
 
+		// Set Rasterizer State (used to cull and transform vertices before the shaders)
+		context->RSSetState(rasterizerState.Get());
+		context->OMSetDepthStencilState(depthStencilState.Get(), 0);
+
 		// Set shaders
 		context->VSSetShader(vertexShader->shader.Get(), nullptr, 0);
-		context->PSSetShader(pixelShader.Get(), NULL, 0);
+		context->PSSetShader(pixelShader->shader.Get(), nullptr, 0);
 
 		// Render the assets/shaders/triangle.
-		context->DrawIndexed(ARRAYSIZE(triangleIndices), 0, 0);
+		context->DrawIndexed(numVertices, 0, 0);
 	}
+
+	// Finished rendering, present results
+	swapchain->Present((vsync) ? 1 : 0, 0);
 }

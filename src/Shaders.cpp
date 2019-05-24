@@ -1,4 +1,4 @@
-#include "Loader.h"
+#include "Shaders.h"
 
 #include <iostream>
 #include <filesystem>
@@ -50,9 +50,9 @@ ComPtr<ID3DBlob> loadShader(const std::string& relativePath, const char* target,
 	return compiledShader;
 }
 
-VertexShaderDataPtr loadVertexShader(ID3D11Device* device, const std::string& relativePath, const std::string& entryPoint)
+VertexShaderPtr loadVertexShader(ID3D11Device* device, const std::string& relativePath, const std::string& entryPoint)
 {
-	VertexShaderDataPtr shader(new VertexShader());
+	VertexShaderPtr shader(new VertexShader());
 	shader->shaderBuffer = loadShader(relativePath, "vs_5_0", entryPoint.c_str());
 
 	HRESULT result;
@@ -71,7 +71,8 @@ VertexShaderDataPtr loadVertexShader(ID3D11Device* device, const std::string& re
 	static D3D11_INPUT_ELEMENT_DESC vertexLayoutDesc[] = {
 		// each line marks a different variable in the input and output struct
 		// todo: if the shader becomes 2D...should be an R32G32B32_FLOAT
-		{ "POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 0, D3D11_INPUT_PER_VERTEX_DATA, 0 }
+		{ "POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 0, D3D11_INPUT_PER_VERTEX_DATA, 0 },
+		{ "COLOR", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, D3D11_APPEND_ALIGNED_ELEMENT, D3D11_INPUT_PER_VERTEX_DATA, 0 }
 	};
 
 	result = device->CreateInputLayout(
@@ -85,17 +86,17 @@ VertexShaderDataPtr loadVertexShader(ID3D11Device* device, const std::string& re
 	return shader;
 }
 
-ComPtr<ID3D11PixelShader> loadFragmentShader(ID3D11Device* device, const std::string& relativePath, const std::string& entryPoint)
+PixelShaderPtr loadPixelShader(ID3D11Device* device, const std::string& relativePath, const std::string& entryPoint)
 {
-	auto shaderData = loadShader(relativePath, "ps_5_0", entryPoint.c_str());
+	PixelShaderPtr shader(new PixelShader());
+	shader->shaderBuffer = loadShader(relativePath, "ps_5_0", entryPoint.c_str());
 
-	ComPtr<ID3D11PixelShader> pShader;
 	HRESULT result = device->CreatePixelShader(
-		shaderData->GetBufferPointer(),
-		shaderData->GetBufferSize(),
+		shader->shaderBuffer->GetBufferPointer(),
+		shader->shaderBuffer->GetBufferSize(),
 		nullptr,
-		pShader.GetAddressOf()
+		shader->shader.GetAddressOf()
 	);
 
-	return pShader;
+	return shader;
 }

@@ -6,6 +6,10 @@
 #include <memory>
 #include <wrl/client.h>
 
+#include <glm/vec3.hpp>
+
+#include "Shaders.h"
+
 #pragma comment(lib, "d3d11.lib")
 #pragma comment(lib, "dxgi.lib")
 #pragma comment(lib, "dxguid.lib")
@@ -13,20 +17,22 @@
 
 using Microsoft::WRL::ComPtr;
 
-struct VertexShader
-{
-	ComPtr<ID3D11VertexShader> shader;
-	ComPtr<ID3DBlob> shaderBuffer;
-	ComPtr<ID3D11InputLayout> inputLayout;
-};
-
 struct AdapterData
 {
 	ComPtr<IDXGIAdapter> adapter;
 	DXGI_ADAPTER_DESC description;
 };
 
-typedef std::shared_ptr<VertexShader> VertexShaderDataPtr;
+
+class Vertex
+{
+public:
+	Vertex() : Vertex({ 0, 0, 0 }, { 0, 0, 0 }) {}
+	Vertex(glm::vec3 position) : position{ position }, color{ 0, 0, 0 } {}
+	Vertex(glm::vec3 position, glm::vec3 color) : position{ position }, color{ color } {}
+	glm::vec3 position;
+	glm::vec3 color;
+};
 
 class Renderer
 {
@@ -35,13 +41,14 @@ public:
 	Renderer(const Renderer& other) = delete;
 	~Renderer();
 
+	// Initialize what we'll be drawing
+	// This will be refactored into a dynamic scene later
+	void initScene();
+
 	// Sets the size of the renderer. 
-	void setSize(unsigned width, unsigned height);
+	void resize(unsigned width, unsigned height);
 
 	void render();
-
-	// example render functions. Will be replaced in the future
-	void renderTriangle();
 
 private:
 	// Reads all adapters. Corresponds to display out devices
@@ -64,9 +71,25 @@ private:
 	ComPtr<ID3D11DeviceContext> context;
 	ComPtr<IDXGISwapChain> swapchain;
 	ComPtr<ID3D11Texture2D> backbuffer;
+	ComPtr<ID3D11RenderTargetView> renderTargetView;
+
+	// Rasterizer state (used to cull and transform vertices before render)
+	ComPtr<ID3D11RasterizerState> rasterizerState;
+
+	ComPtr<ID3D11DepthStencilView> depthStencilView;
+	ComPtr<ID3D11Texture2D> depthStencilBuffer;
+	ComPtr<ID3D11DepthStencilState> depthStencilState;
+
+	// Sampler state, used to sample textures in shaders
+	ComPtr<ID3D11SamplerState> samplerState;
 
 	D3D_FEATURE_LEVEL featureLevel;
 	D3D11_VIEWPORT viewport;
 
-	ComPtr<ID3D11RenderTargetView> renderTargetView;
+	// Store what we're drawing...this will be refactored
+	ComPtr<ID3D11Buffer> vertexBuffer;
+	ComPtr<ID3D11Buffer> indexBuffer;
+	int numVertices = 0;
+	VertexShaderPtr vertexShader;
+	PixelShaderPtr pixelShader;
 };

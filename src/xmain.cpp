@@ -46,7 +46,7 @@ void xmain(int argc, const char** argv)
 			{
 				// resize renderer
 				auto data = event.data.resize;
-				renderer.setSize(data.width, data.height);
+				renderer.resize(data.width, data.height);
 				shouldRender = false;
 			}
 
