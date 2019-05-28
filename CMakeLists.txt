@@ -1,4 +1,6 @@
 # Project Info
+# We must use 3.13 and above as symbolic links cannot be used on windows in older versions.
+# This means that if you plan on using Visual Studio's Open Cmake functionality, it has to be in VS 2019.
 
 cmake_minimum_required(VERSION 3.13 FATAL_ERROR)
 cmake_policy(VERSION 3.13)
