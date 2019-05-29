@@ -256,3 +256,53 @@ void DX11Interface::present(bool vsync)
 {
 	swapchain->Present((vsync) ? 1 : 0, 0);
 }
+
+VertexBufferPtr DX11Interface::createVertexBuffer(void* verticesPtr, unsigned numVertices, size_t stride)
+{
+	unsigned strideU = static_cast<unsigned>(stride);
+
+	D3D11_BUFFER_DESC vertexBufferDesc;
+	ZeroMemory(&vertexBufferDesc, sizeof(D3D11_BUFFER_DESC));
+	vertexBufferDesc.ByteWidth = strideU * numVertices;
+	vertexBufferDesc.Usage = D3D11_USAGE_DEFAULT;
+	vertexBufferDesc.BindFlags = D3D11_BIND_VERTEX_BUFFER;
+
+	D3D11_SUBRESOURCE_DATA vertexBufferData;
+	vertexBufferData.pSysMem = verticesPtr;
+	vertexBufferData.SysMemPitch = 0;
+	vertexBufferData.SysMemSlicePitch = 0;
+
+	ID3D11Buffer* buffer;
+	ThrowIfFailed(device->CreateBuffer(
+		&vertexBufferDesc,
+		&vertexBufferData,
+		&buffer
+	));
+
+	return std::make_shared<VertexBuffer>(buffer, numVertices, strideU);
+}
+
+IndexBufferPtr DX11Interface::createIndexBuffer(void* indicesPtr, unsigned numIndices, size_t stride)
+{
+	static D3D11_BUFFER_DESC indexBufferDesc = {
+		stride * numIndices,
+		D3D11_USAGE_DEFAULT,
+		D3D11_BIND_INDEX_BUFFER,
+		0, 0, 0 // flags and stride all 0
+		};
+
+	static D3D11_SUBRESOURCE_DATA indexBufferData = {
+		indicesPtr,
+		0,
+		0
+	};
+
+	ID3D11Buffer* buffer;
+	ThrowIfFailed(device->CreateBuffer(
+		&indexBufferDesc,
+		&indexBufferData,
+		&buffer
+	));
+
+	return std::make_shared<IndexBuffer>(buffer, numIndices);
+}

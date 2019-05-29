@@ -5,6 +5,7 @@
 #include <wrl/client.h>
 
 #include <glm/vec3.hpp>
+#include <glm/mat4x4.hpp>
 
 #include "DX11Interface.h"
 #include "Shaders.h"
@@ -17,9 +18,19 @@ public:
 	Vertex() : Vertex({ 0, 0, 0 }, { 0, 0, 0 }) {}
 	Vertex(glm::vec3 position) : position{ position }, color{ 0, 0, 0 } {}
 	Vertex(glm::vec3 position, glm::vec3 color) : position{ position }, color{ color } {}
+	
 	glm::vec3 position;
 	glm::vec3 color;
 };
+
+// Data for a constant buffer
+struct ConstantBufferData
+{
+	// final matrix multiplication applied to a shader;
+	glm::mat4x4 modelViewProj; // [64 bytes] [4 blocks]
+};
+
+const size_t ConstantBufferData_BLOCKSIZE = 64;
 
 class Renderer
 {
@@ -47,9 +58,11 @@ private:
 	bool vsync = true;
 
 	// Store what we're drawing...this will be refactored
-	ComPtr<ID3D11Buffer> vertexBuffer;
-	ComPtr<ID3D11Buffer> indexBuffer;
-	int numVertices = 0;
+	VertexBufferPtr vertexBuffer;
+	IndexBufferPtr indexBuffer;
 	VertexShaderPtr vertexShader;
 	PixelShaderPtr pixelShader;
+
+	ConstantBufferPtr<ConstantBufferData> constantBuffer;
+	ConstantBufferData constantBufferData;
 };

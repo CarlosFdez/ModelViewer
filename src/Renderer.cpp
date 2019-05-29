@@ -40,46 +40,11 @@ void Renderer::initScene()
 		Vertex({0.0f, 0.5f, 0}, { 0, 1, 0}),
 		Vertex({0.5f, -0.5f, 0}, { 0, 1, 1})
 	};
-	this->numVertices = ARRAYSIZE(triangleVertices);
-
 	unsigned short triangleIndices[] = { 0, 1, 2 };
 
-	D3D11_BUFFER_DESC vertexBufferDesc{
-		sizeof(Vertex) * this->numVertices,
-		D3D11_USAGE_DEFAULT,
-		D3D11_BIND_VERTEX_BUFFER,
-		0, 0, 0  // flags and stride all 0
-	};
-
-	D3D11_SUBRESOURCE_DATA vertexBufferData;
-	vertexBufferData.pSysMem = triangleVertices;
-	vertexBufferData.SysMemPitch = 0;
-	vertexBufferData.SysMemSlicePitch = 0;
-
-	ThrowIfFailed(device->CreateBuffer(
-		&vertexBufferDesc,
-		&vertexBufferData,
-		vertexBuffer.GetAddressOf()
-	));
-
-	static D3D11_BUFFER_DESC indexBufferDesc = {
-		sizeof(unsigned short) * ARRAYSIZE(triangleIndices),
-		D3D11_USAGE_DEFAULT,
-		D3D11_BIND_INDEX_BUFFER,
-		0, 0, 0 // flags and stride all 0
-	};
-
-	static D3D11_SUBRESOURCE_DATA indexBufferData = {
-		triangleIndices,
-		0,
-		0
-	};
-
-	ThrowIfFailed(device->CreateBuffer(
-		&indexBufferDesc,
-		&indexBufferData,
-		indexBuffer.GetAddressOf()
-	));
+	vertexBuffer = dx11.createVertexBuffer(triangleVertices, ARRAYSIZE(triangleVertices), sizeof(Vertex));
+	indexBuffer = dx11.createIndexBuffer(triangleIndices, ARRAYSIZE(triangleIndices), sizeof(unsigned short));
+	constantBuffer = dx11.createConstantBuffer<ConstantBufferData>(ConstantBufferData_BLOCKSIZE);
 }
 
 void Renderer::resize(unsigned width, unsigned height)
@@ -96,22 +61,26 @@ void Renderer::render()
 
 	// all of this is the triangle draw call
 	{
-		// Set the vertex buffer to active in the input assembler so it can be rendered.
-		unsigned stride = sizeof(Vertex);
-		unsigned offset = 0;
-
 		// Input assembler stage
 		// Set the topology type, vertex information, and the input layout the shaders will use
-		context->IASetVertexBuffers(0, 1, vertexBuffer.GetAddressOf(), &stride, &offset);
-		context->IASetIndexBuffer(indexBuffer.Get(), DXGI_FORMAT_R16_UINT, 0);
-		context->IASetInputLayout(vertexShader->inputLayout.Get());
+		context->IASetVertexBuffers(0, 1, 
+			vertexBuffer->getBufferPtr(), 
+			vertexBuffer->getStridePtr(), 
+			vertexBuffer->getOffsetPtr());
+		context->IASetIndexBuffer(indexBuffer->get(), DXGI_FORMAT_R16_UINT, 0);
 
-		// Set shaders
+		// update constant buffer
+		constantBufferData.modelViewProj = glm::mat4x4(1.0f);
+		constantBuffer->apply(constantBufferData);
+
+		// Set shaders and constant buffer. Buffer goes to register 0.
+		context->IASetInputLayout(vertexShader->inputLayout.Get());
+		context->VSSetConstantBuffers(0, 1, constantBuffer->getBufferPtr());
 		context->VSSetShader(vertexShader->shader.Get(), nullptr, 0);
 		context->PSSetShader(pixelShader->shader.Get(), nullptr, 0);
 
 		// Render the assets/shaders/triangle.
-		context->DrawIndexed(numVertices, 0, 0);
+		context->DrawIndexed(indexBuffer->size(), 0, 0);
 	}
 
 	// Finished rendering, present results
