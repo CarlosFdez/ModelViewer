@@ -26,6 +26,16 @@ void xmain(int argc, const char** argv)
 	xwin::WindowDesc desc = window.getDesc();
 	Renderer renderer(window.getDelegate().hwnd, desc.width, desc.height);
 
+	auto resourceManager = renderer.getResourceManager();
+	auto teapotMesh = resourceManager->loadModel(L"teapot.obj");
+
+	ScenePtr scene(new Scene());
+	auto teapot = scene->createObject(teapotMesh);
+	teapot->setWorldPosition(0.0f, -0.3f, 2.5f);
+	teapot->setScale(0.3f);
+
+	renderer.setScene(scene);
+
 	// Handle window events
 	bool isRunning = true;
 	while (true)

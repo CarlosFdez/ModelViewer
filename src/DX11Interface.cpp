@@ -257,7 +257,7 @@ void DX11Interface::present(bool vsync)
 	swapchain->Present((vsync) ? 1 : 0, 0);
 }
 
-VertexBufferPtr DX11Interface::createVertexBuffer(void* verticesPtr, unsigned numVertices, size_t stride)
+VertexBufferPtr DX11Interface::createVertexBuffer(const void* verticesPtr, unsigned numVertices, size_t stride)
 {
 	unsigned strideU = static_cast<unsigned>(stride);
 
@@ -282,10 +282,10 @@ VertexBufferPtr DX11Interface::createVertexBuffer(void* verticesPtr, unsigned nu
 	return std::make_shared<VertexBuffer>(buffer, numVertices, strideU);
 }
 
-IndexBufferPtr DX11Interface::createIndexBuffer(void* indicesPtr, unsigned numIndices, size_t stride)
+IndexBufferPtr DX11Interface::createIndexBuffer(const unsigned* indicesPtr, unsigned numIndices)
 {
 	static D3D11_BUFFER_DESC indexBufferDesc = {
-		stride * numIndices,
+		sizeof(unsigned) * numIndices,
 		D3D11_USAGE_DEFAULT,
 		D3D11_BIND_INDEX_BUFFER,
 		0, 0, 0 // flags and stride all 0

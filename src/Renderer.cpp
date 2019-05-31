@@ -2,6 +2,9 @@
 
 #include <iostream>
 
+#include <glm/glm.hpp>
+#include <glm/gtc/matrix_transform.hpp> // glm::translate, glm::rotate, glm::scale, glm::perspective
+
 #define CHECK_RESULT(result) { if (result < 0) { return -1; } }
 
 inline void ThrowIfFailed(HRESULT hr)
@@ -14,75 +17,91 @@ inline void ThrowIfFailed(HRESULT hr)
 
 Renderer::Renderer(HWND hwnd, unsigned width, unsigned height) : hwnd{ hwnd }, width{ width }, height{ height }
 {
-	dx11.initialize(hwnd, width, height, windowed);
+	dx11 = std::make_unique<DX11Interface>();
+	dx11->initialize(hwnd, width, height, windowed);
 
-	// initializes the scene - todo: refactor this out for a dynamic set
-	initScene();
+	resourceManager = std::make_unique<ResourceManager>();
+	resourceManager->initialize(dx11.get());
+
+	// Initialize Shaders
+	pixelShader = loadPixelShader(dx11->getDevice(), "SimplePixelShader.hlsl");
+	vertexShader = loadVertexShader(dx11->getDevice(), "SimpleVertexShader.hlsl");
+
+	// Initialize Constant Buffer
+	constantBuffer = dx11->createConstantBuffer<ConstantBufferData>(ConstantBufferData_BLOCKSIZE);
 }
 
 Renderer::~Renderer()
 {
 }
 
-
-void Renderer::initScene()
+void Renderer::setScene(ScenePtr scene)
 {
-	auto device = dx11.getDevice();
-	auto context = dx11.getContext();
-
-	// todo: shader and vertex buffer info needs to be passed in some way...static for now
-	pixelShader = loadPixelShader(device, "SimplePixelShader.hlsl");
-	vertexShader = loadVertexShader(device, "SimpleVertexShader.hlsl");
-
-	// note: vertices must be clockwise (or it'll fail)
-	Vertex triangleVertices[] = {
-		Vertex({-0.5f, -0.5f, 0}, { 1, 0, 0}),
-		Vertex({0.0f, 0.5f, 0}, { 0, 1, 0}),
-		Vertex({0.5f, -0.5f, 0}, { 0, 1, 1})
-	};
-	unsigned short triangleIndices[] = { 0, 1, 2 };
-
-	vertexBuffer = dx11.createVertexBuffer(triangleVertices, ARRAYSIZE(triangleVertices), sizeof(Vertex));
-	indexBuffer = dx11.createIndexBuffer(triangleIndices, ARRAYSIZE(triangleIndices), sizeof(unsigned short));
-	constantBuffer = dx11.createConstantBuffer<ConstantBufferData>(ConstantBufferData_BLOCKSIZE);
+	this->scene = scene;
 }
 
 void Renderer::resize(unsigned width, unsigned height)
 {
-	dx11.resize(width, height);
+	dx11->resize(width, height);
 }
 
 void Renderer::render()
 {
 	// Clear background
-	dx11.clearView({ 0.0f, 0.0f, 0.0f, 1.0f });
+	dx11->clearView({ 0.0f, 0.0f, 0.0f, 1.0f });
 
-	auto context = dx11.getContext();
+	auto context = dx11->getContext();
 
-	// all of this is the triangle draw call
+	if (scene != nullptr)
 	{
-		// Input assembler stage
-		// Set the topology type, vertex information, and the input layout the shaders will use
-		context->IASetVertexBuffers(0, 1, 
-			vertexBuffer->getBufferPtr(), 
-			vertexBuffer->getStridePtr(), 
-			vertexBuffer->getOffsetPtr());
-		context->IASetIndexBuffer(indexBuffer->get(), DXGI_FORMAT_R16_UINT, 0);
+		// all of this is the triangle draw call
+		for (auto& sceneObject : *scene)
+		{
+			MeshResourcePtr mesh = sceneObject->mesh;
+			if (mesh == nullptr) {
+				continue;
+			}
 
-		// update constant buffer
-		constantBufferData.modelViewProj = glm::mat4x4(1.0f);
-		constantBuffer->apply(constantBufferData);
+			void* rawBuffer = mesh->primitiveBuffers.get();
+			D3D11PrimitiveBuffers* buffers = static_cast<D3D11PrimitiveBuffers*>(rawBuffer);
+			auto vertexBuffer = buffers->vertexBuffer;
+			auto indexBuffer = buffers->indexBuffer;
 
-		// Set shaders and constant buffer. Buffer goes to register 0.
-		context->IASetInputLayout(vertexShader->inputLayout.Get());
-		context->VSSetConstantBuffers(0, 1, constantBuffer->getBufferPtr());
-		context->VSSetShader(vertexShader->shader.Get(), nullptr, 0);
-		context->PSSetShader(pixelShader->shader.Get(), nullptr, 0);
+			// Input assembler stage
+			// Set the topology type, vertex information, and the input layout the shaders will use
+			context->IASetVertexBuffers(0, 1,
+				vertexBuffer->getBufferPtr(),
+				vertexBuffer->getStridePtr(),
+				vertexBuffer->getOffsetPtr());
+			context->IASetIndexBuffer(indexBuffer->get(), indexBuffer->getFormat(), 0);
 
-		// Render the assets/shaders/triangle.
-		context->DrawIndexed(indexBuffer->size(), 0, 0);
+			// Set shaders and constant buffer. 
+			context->IASetInputLayout(vertexShader->inputLayout.Get());
+			context->VSSetShader(vertexShader->shader.Get(), nullptr, 0);
+			context->PSSetShader(pixelShader->shader.Get(), nullptr, 0);
+
+			// construct MVP matrix
+			auto world_m = sceneObject->getModelMatrix();
+
+			glm::vec3 cameraPosition(0, 0, 0);
+			glm::vec3 cameraForward(0, 0, 1);
+			glm::vec3 cameraUp(0, 1, 0);
+			auto view_m = glm::lookAt(cameraPosition, cameraPosition + cameraForward, cameraUp);
+
+			float aspectRatio = static_cast<float>(width) / static_cast<float>(height);
+			auto projection_m = glm::perspective(glm::radians(45.0f), aspectRatio, 0.01f, 50.0f);
+
+			constantBufferData.modelViewProj = projection_m * view_m * world_m;
+
+			// update and assign constant buffer. Buffer goes to register 0.
+			constantBuffer->apply(constantBufferData);
+			context->VSSetConstantBuffers(0, 1, constantBuffer->getBufferPtr());
+
+			// Render the assets/shaders/triangle.
+			context->DrawIndexed(indexBuffer->size(), 0, 0);
+		}
 	}
 
 	// Finished rendering, present results
-	dx11.present(vsync);
+	dx11->present(vsync);
 }

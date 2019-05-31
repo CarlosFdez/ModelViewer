@@ -8,6 +8,9 @@
 #include <vector>
 #include <memory>
 
+#include "Shaders.h"
+#include "Assets.h"
+
 #pragma comment(lib, "d3d11.lib")
 #pragma comment(lib, "dxgi.lib")
 #pragma comment(lib, "dxguid.lib")
@@ -50,13 +53,16 @@ class IndexBuffer
 {
 public:
 	IndexBuffer(ID3D11Buffer* buffer, unsigned numIndices) :
-		buffer{ buffer }, numIndices { numIndices} {}
+		buffer{ buffer }, numIndices{ numIndices } {}
 
 	// Returns a pointer to the managed low level buffer
 	ID3D11Buffer* get() const { return buffer.Get(); }
 
 	// Returns the number of indices
 	unsigned size() const { return numIndices; }
+
+	// Returns the index format. Current hardcoded to 32bit, however mobile devices only support 16bit.
+	DXGI_FORMAT getFormat() const { return DXGI_FORMAT_R32_UINT; }
 
 private:
 	ComPtr<ID3D11Buffer> buffer;
@@ -101,6 +107,14 @@ template <typename T>
 using ConstantBufferPtr = std::shared_ptr<ConstantBuffer<T>>;
 
 
+// Buffers associated with a particular mesh
+struct D3D11PrimitiveBuffers
+{
+	VertexBufferPtr vertexBuffer;
+	IndexBufferPtr indexBuffer;
+};
+
+
 // Main class used to interface with the DirectX 11 runtime.
 // Contains the driver and context classes used to perform rendering,
 // as well as helper methods to load elements like vertex buffers.
@@ -143,8 +157,19 @@ public:
 		return std::make_shared<ConstantBuffer<T>>(context, buffer, blockSize);
 	}
 
-	VertexBufferPtr createVertexBuffer(void* verticesPtr, unsigned numVertices, size_t stride);
-	IndexBufferPtr createIndexBuffer(void* indicesPtr, unsigned numIndices, size_t stride);
+	VertexBufferPtr createVertexBuffer(const void* verticesPtr, unsigned numVertices, size_t stride);
+	IndexBufferPtr createIndexBuffer(const unsigned* indicesPtr, unsigned numIndices);
+
+	template <typename T>
+	inline VertexBufferPtr createVertexBuffer(const std::vector<T>& vertices)
+	{
+		return createVertexBuffer(vertices.data(), vertices.size(), sizeof(T));
+	}
+
+	inline IndexBufferPtr createIndexBuffer(const std::vector<unsigned> indices)
+	{
+		return createIndexBuffer(indices.data(), indices.size());
+	}
 
 private:
 	void updateRenderTarget(unsigned width, unsigned height);
