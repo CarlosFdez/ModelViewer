@@ -3,7 +3,6 @@
 #include <iostream>
 
 #include <glm/glm.hpp>
-#include <glm/gtc/matrix_transform.hpp> // glm::translate, glm::rotate, glm::scale, glm::perspective
 
 #define CHECK_RESULT(result) { if (result < 0) { return -1; } }
 
@@ -29,6 +28,11 @@ Renderer::Renderer(HWND hwnd, unsigned width, unsigned height) : hwnd{ hwnd }, w
 
 	// Initialize Constant Buffer
 	constantBuffer = dx11->createConstantBuffer<ConstantBufferData>(ConstantBufferData_BLOCKSIZE);
+
+	// Initialize camera
+	camera.setFov(45.0f);
+	camera.setAspectRatio(float(width) / (float)height);
+	camera.setClipRange(0.1f, 50.0f);
 }
 
 Renderer::~Renderer()
@@ -42,7 +46,12 @@ void Renderer::setScene(ScenePtr scene)
 
 void Renderer::resize(unsigned width, unsigned height)
 {
+	this->width = width;
+	this->height = height;
 	dx11->resize(width, height);
+
+	float aspectRatio = static_cast<float>(width) / static_cast<float>(height);
+	camera.setAspectRatio(aspectRatio);
 }
 
 void Renderer::render()
@@ -75,23 +84,15 @@ void Renderer::render()
 				vertexBuffer->getOffsetPtr());
 			context->IASetIndexBuffer(indexBuffer->get(), indexBuffer->getFormat(), 0);
 
-			// Set shaders and constant buffer. 
+			// Set shaders
 			context->IASetInputLayout(vertexShader->inputLayout.Get());
 			context->VSSetShader(vertexShader->shader.Get(), nullptr, 0);
 			context->PSSetShader(pixelShader->shader.Get(), nullptr, 0);
 
-			// construct MVP matrix
+			// construct MVP matrix and assign to constant buffer
 			auto world_m = sceneObject->getModelMatrix();
-
-			glm::vec3 cameraPosition(0, 0, 0);
-			glm::vec3 cameraForward(0, 0, 1);
-			glm::vec3 cameraUp(0, 1, 0);
-			auto view_m = glm::lookAt(cameraPosition, cameraPosition + cameraForward, cameraUp);
-
-			float aspectRatio = static_cast<float>(width) / static_cast<float>(height);
-			auto projection_m = glm::perspective(glm::radians(45.0f), aspectRatio, 0.01f, 50.0f);
-
-			constantBufferData.modelViewProj = projection_m * view_m * world_m;
+			auto view_proj_m = camera.getViewProjectionMatrix();
+			constantBufferData.modelViewProj = view_proj_m * world_m;
 
 			// update and assign constant buffer. Buffer goes to register 0.
 			constantBuffer->apply(constantBufferData);

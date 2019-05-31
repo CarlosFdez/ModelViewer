@@ -14,6 +14,7 @@
 #include "Scene.h"
 #include "DX11Interface.h"
 #include "ResourceManager.h"
+#include "Camera.h"
 
 using Microsoft::WRL::ComPtr;
 
@@ -43,6 +44,8 @@ public:
 	ResourceManager* getResourceManager() { return resourceManager.get();  }
 
 	void render();
+
+	Camera camera;
 
 private:
 	std::unique_ptr<DX11Interface> dx11;

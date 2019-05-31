@@ -28,7 +28,7 @@ struct MeshResource
 	std::vector<Vertex> vertices;
 	std::vector<unsigned> indices;
 
-	// Arbitrary primative data. todo: accept a joined object that is rendering engine independant
+	// Arbitrary primitive data
 	std::shared_ptr<void> primitiveBuffers;
 };
 
