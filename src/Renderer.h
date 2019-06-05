@@ -14,6 +14,7 @@
 #include "Scene.h"
 #include "DX11Interface.h"
 #include "ResourceManager.h"
+#include "InputManager.h"
 #include "Camera.h"
 
 using Microsoft::WRL::ComPtr;
@@ -22,10 +23,11 @@ using Microsoft::WRL::ComPtr;
 struct ConstantBufferData
 {
 	// final matrix multiplication applied to a shader;
-	glm::mat4x4 modelViewProj = glm::mat4x4(1.0f); // [64 bytes] [4 blocks]
+	glm::mat4x4 model = glm::mat4x4(1.0f); // [64 bytes] [4 blocks]
+	glm::mat4x4 viewProjection = glm::mat4x4(1.0f); // [64 bytes] [4 blocks]
 };
 
-const size_t ConstantBufferData_BLOCKSIZE = 64;
+const size_t ConstantBufferData_BLOCKSIZE = 128;
 
 class Renderer
 {
@@ -41,15 +43,18 @@ public:
 	// Sets the size of the renderer. 
 	void resize(unsigned width, unsigned height);
 
+	Camera* getCamera() { return camera.get(); }
 	ResourceManager* getResourceManager() { return resourceManager.get();  }
+	InputManager* getInputManager() { return inputManager.get(); }
 
 	void render();
-
-	Camera camera;
 
 private:
 	std::unique_ptr<DX11Interface> dx11;
 	std::unique_ptr<ResourceManager> resourceManager;
+	std::unique_ptr<InputManager> inputManager;
+
+	std::unique_ptr<Camera> camera;
 
 	VertexShaderPtr vertexShader = nullptr;
 	PixelShaderPtr pixelShader = nullptr;

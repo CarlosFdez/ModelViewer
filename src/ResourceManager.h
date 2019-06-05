@@ -4,8 +4,6 @@
 #include <vector>
 #include <memory>
 
-#include <glm/vec3.hpp>
-
 #include "Assets.h"
 #include "DX11Interface.h"
 

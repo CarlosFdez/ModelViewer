@@ -5,7 +5,6 @@
 
 #include "Assets.h"
 
-
 #define GLM_FORCE_LEFT_HANDED
 #define GLM_FORCE_DEPTH_ZERO_TO_ONE
 #include <glm/glm.hpp>
@@ -45,11 +44,20 @@ public:
 
 	MeshResourcePtr mesh = nullptr;
 
-	void setWorldPosition(float x, float y, float z)
+	// Get the camera's position in the world
+	glm::vec3 getPosition() const { return worldPosition; }
+
+	// Sets the objects's position
+	void setPosition(const glm::vec3& position);
+
+	// Sets the object's location
+	void setPosition(float x, float y, float z)
 	{
-		worldPosition = { x, y, z };
-		dirty = true;
+		setPosition({ x, y, z });
 	}
+
+	// Moves the object by a certain amount
+	void move(const glm::vec3& moveDelta);
 
 	void setScale(float x, float y, float z)
 	{

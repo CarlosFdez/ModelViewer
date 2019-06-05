@@ -5,6 +5,8 @@
 #include <fstream>
 #include <strstream>
 
+#define GLM_FORCE_LEFT_HANDED
+#define GLM_FORCE_DEPTH_ZERO_TO_ONE
 #include <glm/vec3.hpp>
 
 using namespace std;
@@ -52,13 +54,27 @@ MeshResourcePtr ResourceManager::loadModel(const std::wstring& relativePath)
 		}
 		else if (firstChar == "f")
 		{
+			// obj are counter clockwise, make clockwise and make them 0 indexed
 			unsigned p1, p2, p3;
+			//s >> p3 >> p2 >> p1;
 			s >> p1 >> p2 >> p3;
+			p1 -= 1;
+			p2 -= 1;
+			p3 -= 1;
 
-			// obj are counter clockwise, make clockwise
-			indices.push_back(p3 - 1);
-			indices.push_back(p2 - 1);
-			indices.push_back(p1 - 1);
+			// calculate the normal, and add it to the normal of each vertex. 
+			// We normalize in the end
+			glm::vec3 v1 = vertices[p2].position - vertices[p1].position;
+			glm::vec3 v2 = vertices[p3].position - vertices[p1].position;
+			glm::vec3 normal = glm::normalize(glm::cross(v1, v2));
+
+			vertices[p1].normal += normal;
+			vertices[p2].normal += normal;
+			vertices[p3].normal += normal;
+
+			indices.push_back(p1);
+			indices.push_back(p2);
+			indices.push_back(p3);
 		}
 	}
 
@@ -67,6 +83,12 @@ MeshResourcePtr ResourceManager::loadModel(const std::wstring& relativePath)
 	auto buffers = std::make_shared<D3D11PrimitiveBuffers>();
 	buffers->vertexBuffer = dx11->createVertexBuffer(vertices);
 	buffers->indexBuffer = dx11->createIndexBuffer(indices);
+
+	// make vertex normals into unit vectors
+	for (auto& vertex : vertices)
+	{
+		vertex.normal = glm::normalize(vertex.normal);
+	}
 
 	// Create the resource
 	MeshResourcePtr resource(new MeshResource());

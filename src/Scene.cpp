@@ -15,6 +15,17 @@ SceneObjectPtr Scene::createObject(const MeshResourcePtr& mesh)
 	return newObject;
 }
 
+void SceneObject::setPosition(const glm::vec3& position)
+{
+	worldPosition = position;
+	dirty = true;
+}
+
+void SceneObject::move(const glm::vec3& moveDelta)
+{
+	setPosition(this->worldPosition + moveDelta);
+}
+
 const glm::mat4x4& SceneObject::getModelMatrix()
 {
 	if (!dirty)

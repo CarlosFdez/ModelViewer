@@ -22,6 +22,8 @@ Renderer::Renderer(HWND hwnd, unsigned width, unsigned height) : hwnd{ hwnd }, w
 	resourceManager = std::make_unique<ResourceManager>();
 	resourceManager->initialize(dx11.get());
 
+	inputManager = std::make_unique<InputManager>();
+
 	// Initialize Shaders
 	pixelShader = loadPixelShader(dx11->getDevice(), "SimplePixelShader.hlsl");
 	vertexShader = loadVertexShader(dx11->getDevice(), "SimpleVertexShader.hlsl");
@@ -30,9 +32,10 @@ Renderer::Renderer(HWND hwnd, unsigned width, unsigned height) : hwnd{ hwnd }, w
 	constantBuffer = dx11->createConstantBuffer<ConstantBufferData>(ConstantBufferData_BLOCKSIZE);
 
 	// Initialize camera
-	camera.setFov(45.0f);
-	camera.setAspectRatio(float(width) / (float)height);
-	camera.setClipRange(0.1f, 50.0f);
+	camera = std::make_unique<Camera>();
+	camera->setFov(45.0f);
+	camera->setAspectRatio(float(width) / (float)height);
+	camera->setClipRange(0.1f, 50.0f);
 }
 
 Renderer::~Renderer()
@@ -51,7 +54,7 @@ void Renderer::resize(unsigned width, unsigned height)
 	dx11->resize(width, height);
 
 	float aspectRatio = static_cast<float>(width) / static_cast<float>(height);
-	camera.setAspectRatio(aspectRatio);
+	camera->setAspectRatio(aspectRatio);
 }
 
 void Renderer::render()
@@ -89,10 +92,9 @@ void Renderer::render()
 			context->VSSetShader(vertexShader->shader.Get(), nullptr, 0);
 			context->PSSetShader(pixelShader->shader.Get(), nullptr, 0);
 
-			// construct MVP matrix and assign to constant buffer
-			auto world_m = sceneObject->getModelMatrix();
-			auto view_proj_m = camera.getViewProjectionMatrix();
-			constantBufferData.modelViewProj = view_proj_m * world_m;
+			// Assign matrices to constant buffer
+			constantBufferData.model = sceneObject->getModelMatrix();
+			constantBufferData.viewProjection = camera->getViewProjectionMatrix();
 
 			// update and assign constant buffer. Buffer goes to register 0.
 			constantBuffer->apply(constantBufferData);

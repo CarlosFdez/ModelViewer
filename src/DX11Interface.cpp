@@ -87,19 +87,11 @@ void DX11Interface::initialize(HWND hwnd, unsigned width, unsigned height, bool 
 
 	// Create the rasterizer state. This performs vertex transformations and culling
 	{
-		D3D11_RASTERIZER_DESC rasterizerDesc
-		{
-			D3D11_FILL_MODE::D3D11_FILL_SOLID,
-			D3D11_CULL_MODE::D3D11_CULL_BACK,
-			false, // draw clockwise
-			0,
-			0,
-			0,
-			0,
-			0,
-			0,
-			0,
-		};
+		D3D11_RASTERIZER_DESC rasterizerDesc;
+		ZeroMemory(&rasterizerDesc, sizeof(D3D11_RASTERIZER_DESC));
+		rasterizerDesc.FillMode = D3D11_FILL_MODE::D3D11_FILL_SOLID;
+		rasterizerDesc.CullMode = D3D11_CULL_MODE::D3D11_CULL_BACK;
+		rasterizerDesc.FrontCounterClockwise = false;
 
 		ThrowIfFailed(device->CreateRasterizerState(
 			&rasterizerDesc,
