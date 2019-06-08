@@ -26,6 +26,17 @@ void SceneObject::move(const glm::vec3& moveDelta)
 	setPosition(this->worldPosition + moveDelta);
 }
 
+// set the rotation as a set of euler angles. 
+void SceneObject::setRotation(const glm::vec3& eulerAngles)
+{
+	// todo: Ensure rotates around Z, then X, then Y.
+	auto angleXRad = glm::radians(eulerAngles.x);
+	auto angleYRad = glm::radians(eulerAngles.y);
+	auto angleZRad = glm::radians(eulerAngles.z);
+	glm::vec3 eulerAngleRadians(angleXRad, angleYRad, angleZRad);
+	this->rotation = glm::quat(eulerAngleRadians);
+}
+
 const glm::mat4x4& SceneObject::getModelMatrix()
 {
 	if (!dirty)
@@ -36,16 +47,10 @@ const glm::mat4x4& SceneObject::getModelMatrix()
 	//auto world_m = glm::translate(glm::mat4x4(1.0f), glm::vec3(0, -0.5f, 3.0f));
 	//world_m = glm::scale(world_m, glm::vec3(0.3f));
 
-	// pass-throughs are applied in reverse order. The bottom is applied first
-	// we want to translate at the very end, so it goes at the top
-	// scaling must happen first, or future operations would be scaled. Goes at the bottom
-	modelMatrix = glm::translate(glm::mat4x4(1.0f), this->worldPosition);
-	// todo: rotation...which is a bit more complicated
-	modelMatrix = glm::scale(modelMatrix, this->scaling);
-
 	auto translation = glm::translate(glm::mat4x4(1.0f), this->worldPosition);
+	auto rotate = glm::toMat4(this->rotation);
 	auto scale = glm::scale(glm::mat4x4(1.0f), this->scaling);
-	modelMatrix = translation * scale;
+	modelMatrix = translation * rotate * scale;
 
 	dirty = false;
 	return modelMatrix;

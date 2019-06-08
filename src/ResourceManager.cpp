@@ -19,6 +19,8 @@ void ResourceManager::initialize(DX11Interface* dx11)
 MeshResourcePtr ResourceManager::loadModel(const std::wstring& relativePath)
 {
 	// todo: CACHE
+	// note: this assumes DX11, which means we negate the Z access and read faces backwards.
+	// OBJ files assume right hand coordinate systems looking down negative Z.
 
 	auto path = filesystem::current_path();
 	path.append("assets\\models");
@@ -50,14 +52,14 @@ MeshResourcePtr ResourceManager::loadModel(const std::wstring& relativePath)
 		{
 			float x, y, z;
 			s >> x >> y >> z;
-			vertices.push_back(Vertex({ x, y, z }, { 0.8, 0.8, 0.8 }));
+			vertices.push_back(Vertex({ x, y, -z }, { 0.8, 0.8, 0.8 }));
 		}
 		else if (firstChar == "f")
 		{
 			// obj are counter clockwise, make clockwise and make them 0 indexed
 			unsigned p1, p2, p3;
 			//s >> p3 >> p2 >> p1;
-			s >> p1 >> p2 >> p3;
+			s >> p3 >> p2 >> p1;
 			p1 -= 1;
 			p2 -= 1;
 			p3 -= 1;

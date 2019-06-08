@@ -35,6 +35,7 @@ void xmain(int argc, const char** argv)
 	auto teapot = scene->createObject(teapotMesh);
 	teapot->setPosition(0.0f, -0.3f, 2.5f);
 	teapot->setScale(0.3f);
+	teapot->setRotation(glm::vec3(0, 180.0, 0));
 
 	renderer.setScene(scene);
 

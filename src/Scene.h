@@ -10,6 +10,7 @@
 #include <glm/glm.hpp>
 #include <glm/vec3.hpp>
 #include <glm/mat4x4.hpp>
+#include <glm/gtx/quaternion.hpp>
 
 class Scene;
 class SceneObject;
@@ -70,6 +71,15 @@ public:
 		this->setScale(s, s, s);
 	}
 
+	// Sets the rotation values (in degrees)
+	void setRotation(const glm::vec3& eulerAngles);
+
+	// sets the rotation values (in degrees)
+	void setRotation(int x, int y, int z)
+	{
+		this->setRotation({ x, y, z });
+	}
+
 	// todo: rotation
 
 	const glm::mat4x4& getModelMatrix();
@@ -84,5 +94,5 @@ private:
 
 	glm::vec3 worldPosition = { 0, 0, 0 };
 	glm::vec3 scaling = { 1, 1, 1 };
-
+	glm::quat rotation = glm::quat();
 };

@@ -32,7 +32,7 @@ ComPtr<ID3DBlob> loadShader(const std::string& relativePath, const char* target,
 	HRESULT result = D3DCompileFromFile(
 		path.wstring().c_str(),
 		nullptr,
-		nullptr,
+		D3D_COMPILE_STANDARD_FILE_INCLUDE,
 		entryPoint,
 		target,
 		compileFlags,
