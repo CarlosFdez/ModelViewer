@@ -1,10 +1,23 @@
 #include "CrossWindow/CrossWindow.h"
 
 #include <iostream>
+#include <chrono>
 #include "Logger.h"
 #include "Renderer.h"
 
 void performUpdate(Renderer& renderer, float fDelta);
+
+ScenePtr createScene(ResourceManager* resourceManager)
+{
+	auto teapotMesh = resourceManager->loadModel(L"teapot.obj");
+
+	ScenePtr scene(new Scene());
+	auto teapot = scene->createObject(teapotMesh);
+	teapot->setPosition(0.0f, -0.3f, 2.5f);
+	teapot->setScale(0.3f);
+
+	return scene;
+}
 
 void xmain(int argc, const char** argv)
 {
@@ -23,32 +36,28 @@ void xmain(int argc, const char** argv)
 
 	if (!window.create(windowDesc, eventQueue))
 	{
+		std::cout << "Failed to create window. Exiting..." << std::endl;
 		return;
 	}
 
+	// Create renderer and scene based on window
 	xwin::WindowDesc desc = window.getDesc();
 	Renderer renderer(window.getDelegate().hwnd, desc.width, desc.height);
+	renderer.setScene(createScene(renderer.getResourceManager()));
 
-	auto resourceManager = renderer.getResourceManager();
-	auto teapotMesh = resourceManager->loadModel(L"teapot.obj");
-
-	ScenePtr scene(new Scene());
-	auto teapot = scene->createObject(teapotMesh);
-	teapot->setPosition(0.0f, -0.3f, 2.5f);
-	teapot->setScale(0.3f);
-
-	renderer.setScene(scene);
-
-	// Handle window events
+	// store for frame counting and limiting fps
+	auto previousTime = std::chrono::high_resolution_clock::now();
+	auto maxFps = 60.0f;
+	
 	bool isRunning = true;
 	while (isRunning)
 	{
 		InputManager* input = renderer.getInputManager();
-		input->notifyEventLoopBefore();
 
 		bool shouldRender = true;
 		eventQueue.update();
 
+		// Handle window events
 		while (!eventQueue.empty())
 		{
 			const xwin::Event& event = eventQueue.front();
@@ -93,15 +102,27 @@ void xmain(int argc, const char** argv)
 			eventQueue.pop();
 		}
 
+		// find out how much time has passed since the last render
+		auto newTime = std::chrono::high_resolution_clock::now();
+		float elapsed = std::chrono::duration<float>(newTime - previousTime).count();
+		float minElapsed = 1.0f / maxFps;
+		if (elapsed < minElapsed)
+		{
+			continue; // wait some more
+		}
+
+		previousTime = newTime;
+
 		// perform update step
-		float fDelta = 1 / 60.0f; // hardcoded for now, use a clock in the future
-		performUpdate(renderer, fDelta);
+		performUpdate(renderer, elapsed);
 
 		// Render view
 		if (shouldRender)
 		{
 			renderer.render();
 		}
+
+		input->notifyRenderFinished();
 	}
 }
 
@@ -115,6 +136,9 @@ void performUpdate(Renderer& renderer, float fDelta)
 {
 	auto camera = renderer.getCamera();
 	auto input = renderer.getInputManager();
+
+	float cameraVelocity = 5.0f;
+	float cameraSensitivity = 8.0f;
 
 	// determine the direction we want to move the camera
 	glm::vec3 cameraMove(0.0f, 0.0f, 0.0f);
@@ -134,8 +158,7 @@ void performUpdate(Renderer& renderer, float fDelta)
 	// If we're moving the camera, scale it to the velocity
 	if (cameraMove != glm::vec3(0, 0, 0))
 	{
-		float velocity = 1.0f;
-		float moveDistance = velocity * fDelta;
+		float moveDistance = cameraVelocity * fDelta;
 
 		glm::vec3 moveBy = glm::normalize(cameraMove) * moveDistance;
 		camera->move(moveBy);
@@ -146,7 +169,7 @@ void performUpdate(Renderer& renderer, float fDelta)
 	{
 		auto camera = renderer.getCamera();
 
-		float sensitivity = 0.1;
+		float sensitivity = cameraSensitivity * fDelta;
 		float deltaX = input->getAxis(InputAxis::MOUSE_X) * sensitivity;
 		float deltaY = input->getAxis(InputAxis::MOUSE_Y) * sensitivity;
 
@@ -173,7 +196,7 @@ void performUpdate(Renderer& renderer, float fDelta)
 		
 		auto object = *scene->begin();
 
-		float sensitivity = 0.2;
+		float sensitivity = 15.0f * fDelta;
 		float deltaX = input->getAxis(InputAxis::MOUSE_X) * sensitivity;
 		float deltaY = input->getAxis(InputAxis::MOUSE_Y) * sensitivity;
 

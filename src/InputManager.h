@@ -25,8 +25,8 @@ public:
 
 	float getAxis(const InputAxis& inputAxis);
 
-	// Called each frame before the start of the windows message loop.
-	void notifyEventLoopBefore();
+	// Called each frame at the very end to clean up data to prepare for the next update
+	void notifyRenderFinished();
 
 	// Called by event loop when the window loses focus. Clears internal state.
 	void notifyLostFocus();

@@ -41,7 +41,7 @@ float InputManager::getAxis(const InputAxis& inputAxis)
 	return getOrDefault(this->axisValues, inputAxis, 0.0f);
 }
 
-void InputManager::notifyEventLoopBefore()
+void InputManager::notifyRenderFinished()
 {
 	// axis values are cleared before each frame
 	axisValues.clear();
