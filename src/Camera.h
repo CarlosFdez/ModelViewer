@@ -31,23 +31,6 @@ public:
 		this->farZ = farZ;
 	}
 
-	// Get the camera's forward direction
-	glm::vec3 getForward() const
-	{
-		return forward;
-	}
-
-	// Get the camera's up direction.
-	glm::vec3 getUp() const
-	{
-		return up;
-	}
-
-	glm::vec3 getRight() const
-	{
-		return right;
-	}
-
 	// Returns the view projection matrix that can be used to modify all other objects to
 	// be within range of the camera in the aspect ratio
 	glm::mat4x4 getViewProjectionMatrix();
@@ -57,8 +40,4 @@ private:
 	float aspectRatio = 1;
 	float nearZ = 0.1f;
 	float farZ = 50.0f;
-
-	glm::vec3 forward = { 0.0f, 0.0f, 1.0f };
-	glm::vec3 up = { 0.0f, 1.0f, 0.0f };
-	glm::vec3 right = glm::cross(up, forward);
 };

@@ -43,11 +43,15 @@ public:
 	// Sets the size of the renderer. 
 	void resize(unsigned width, unsigned height);
 
-	Camera* getCamera() { return camera.get(); }
+	Camera* getCamera() const { return camera.get(); }
+	ScenePtr getScene() const { return scene; }
 	ResourceManager* getResourceManager() { return resourceManager.get();  }
 	InputManager* getInputManager() { return inputManager.get(); }
 
 	void render();
+
+	unsigned getWidth() const { return width; }
+	unsigned getHeight() const { return height; }
 
 private:
 	std::unique_ptr<DX11Interface> dx11;

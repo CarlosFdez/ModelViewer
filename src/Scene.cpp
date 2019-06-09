@@ -2,6 +2,13 @@
 
 #include <glm/gtc/matrix_transform.hpp>
 
+// helper to facilitate wraparound
+template<typename T>
+T wraparound(T value, T minValue, T maxValue)
+{
+	if (value < minV)
+}
+
 SceneObjectPtr Scene::createObject(const MeshResourcePtr& mesh)
 {
 	SceneObjectPtr newObject(new SceneObject());
@@ -26,15 +33,40 @@ void SceneObject::move(const glm::vec3& moveDelta)
 	setPosition(this->worldPosition + moveDelta);
 }
 
-// set the rotation as a set of euler angles. 
+void SceneObject::setScale(float x, float y, float z)
+{
+	scaling = { x, y, z };
+	dirty = true;
+}
+
 void SceneObject::setRotation(const glm::vec3& eulerAngles)
 {
 	// todo: Ensure rotates around Z, then X, then Y.
-	auto angleXRad = glm::radians(eulerAngles.x);
-	auto angleYRad = glm::radians(eulerAngles.y);
-	auto angleZRad = glm::radians(eulerAngles.z);
-	glm::vec3 eulerAngleRadians(angleXRad, angleYRad, angleZRad);
-	this->rotation = glm::quat(eulerAngleRadians);
+	auto angles = glm::mod(eulerAngles, 360.0f);
+	this->rotation = glm::quat(glm::radians(eulerAngles));
+	dirty = true;
+}
+
+void SceneObject::addRotation(const glm::vec3& eulerAngles)
+{
+	auto rotation = glm::quat(glm::radians(eulerAngles));
+	this->applyRotation(rotation);
+}
+
+void SceneObject::addRotation(int x, int y, int z)
+{
+	addRotation({ x, y, z });
+}
+
+void SceneObject::rotateAround(const glm::vec3& axisOfRotation, float angleDegrees)
+{
+	auto r = glm::angleAxis(glm::radians(angleDegrees), axisOfRotation);
+	applyRotation(r);
+}
+
+glm::vec3 SceneObject::getRotation() const
+{
+	return glm::degrees(glm::eulerAngles(this->rotation));
 }
 
 const glm::mat4x4& SceneObject::getModelMatrix()
@@ -56,3 +88,8 @@ const glm::mat4x4& SceneObject::getModelMatrix()
 	return modelMatrix;
 }
 
+void SceneObject::applyRotation(const glm::quat& q)
+{
+	this->rotation = q * this->rotation;
+	dirty = true;
+}

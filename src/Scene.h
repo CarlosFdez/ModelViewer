@@ -60,11 +60,7 @@ public:
 	// Moves the object by a certain amount
 	void move(const glm::vec3& moveDelta);
 
-	void setScale(float x, float y, float z)
-	{
-		scaling = { x, y, z };
-		dirty = true;
-	}
+	void setScale(float x, float y, float z);
 
 	void setScale(float s)
 	{
@@ -75,9 +71,38 @@ public:
 	void setRotation(const glm::vec3& eulerAngles);
 
 	// sets the rotation values (in degrees)
-	void setRotation(int x, int y, int z)
+	void setRotation(float x, float y, float z)
 	{
 		this->setRotation({ x, y, z });
+	}
+
+	void addRotation(const glm::vec3& eulerAngles);
+
+	void addRotation(int x, int y, int z);
+
+	void rotateAround(const glm::vec3& axisOfRotation, float angleDegrees);
+
+	// Returns the current rotation in euler angles (in degrees)
+	glm::vec3 getRotation() const;
+
+	// Get the camera's forward direction
+	glm::vec3 getForward() const
+	{
+		glm::vec3 forward = { 0.0f, 0.0f, 1.0f };
+		return rotation * forward;
+	}
+
+	// Get the camera's up direction.
+	glm::vec3 getUp() const
+	{
+		glm::vec3 up = { 0.0f, 1.0f, 0.0f };
+		return rotation * up;
+	}
+
+	glm::vec3 getRight() const
+	{
+		glm::vec3 right = { 1.0f, 0.0f, 0.0f };
+		return rotation * right;
 	}
 
 	// todo: rotation
@@ -85,6 +110,9 @@ public:
 	const glm::mat4x4& getModelMatrix();
 
 private:
+	// private function to apply a rotation as a quaternion
+	// could be made public in the future
+	void applyRotation(const glm::quat& q);
 
 	// The model matrix. Defaults to identity
 	glm::mat4x4 modelMatrix = glm::mat4x4(1.0f);
@@ -94,5 +122,5 @@ private:
 
 	glm::vec3 worldPosition = { 0, 0, 0 };
 	glm::vec3 scaling = { 1, 1, 1 };
-	glm::quat rotation = glm::quat();
+	glm::quat rotation = glm::quat(glm::vec3(0.0f, 0.0f, 0.0f));
 };

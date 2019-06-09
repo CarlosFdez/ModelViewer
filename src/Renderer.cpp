@@ -49,6 +49,12 @@ void Renderer::setScene(ScenePtr scene)
 
 void Renderer::resize(unsigned width, unsigned height)
 {
+	if (width == 0 || height == 0)
+	{
+		std::cout << "Ignoring invalid resize request [" << width << ", " << height << "]" << std::endl;
+		return;
+	}
+
 	this->width = width;
 	this->height = height;
 	dx11->resize(width, height);

@@ -1,6 +1,7 @@
 #include "CrossWindow/CrossWindow.h"
 
 #include <iostream>
+#include "Logger.h"
 #include "Renderer.h"
 
 void performUpdate(Renderer& renderer, float fDelta);
@@ -35,7 +36,6 @@ void xmain(int argc, const char** argv)
 	auto teapot = scene->createObject(teapotMesh);
 	teapot->setPosition(0.0f, -0.3f, 2.5f);
 	teapot->setScale(0.3f);
-	teapot->setRotation(glm::vec3(0, 180.0, 0));
 
 	renderer.setScene(scene);
 
@@ -43,6 +43,9 @@ void xmain(int argc, const char** argv)
 	bool isRunning = true;
 	while (isRunning)
 	{
+		InputManager* input = renderer.getInputManager();
+		input->notifyEventLoopBefore();
+
 		bool shouldRender = true;
 		eventQueue.update();
 
@@ -68,16 +71,23 @@ void xmain(int argc, const char** argv)
 				if (!data.focused)
 				{
 					std::cout << "Window unfocused" << std::endl;
+					renderer.getInputManager()->notifyLostFocus();
 				}
-
-				renderer.getInputManager()->clear();
 			}
 			else if (event.type == xwin::EventType::Keyboard)
 			{
 				xwin::KeyboardData data = event.data.keyboard;
-
-				InputManager* input = renderer.getInputManager();
 				input->notifyKeyStateChange(data.key, data.state);
+			}
+			else if (event.type == xwin::EventType::MouseInput)
+			{
+				xwin::MouseInputData data = event.data.mouseInput;
+				input->notifyMouseButtonChange(data.button, data.state);
+			}
+			else if (event.type == xwin::EventType::MouseRaw)
+			{
+				xwin::MouseRawData data = event.data.mouseRaw;
+				input->notifyMouseRawInput(data.deltax, data.deltay);
 			}
 
 			eventQueue.pop();
@@ -94,6 +104,12 @@ void xmain(int argc, const char** argv)
 		}
 	}
 }
+
+// camera pitch and yaw as euler angles stored here
+// because quaternions to euler conversions have errors.
+// using a stored euler value and figuring it out from there is easier.
+float cameraPitch;
+float cameraYaw;
 
 void performUpdate(Renderer& renderer, float fDelta)
 {
@@ -123,5 +139,51 @@ void performUpdate(Renderer& renderer, float fDelta)
 
 		glm::vec3 moveBy = glm::normalize(cameraMove) * moveDistance;
 		camera->move(moveBy);
+	}
+
+	// Rotate the camera if we need to
+	if (input->isDown(xwin::MouseInput::Right))
+	{
+		auto camera = renderer.getCamera();
+
+		float sensitivity = 0.1;
+		float deltaX = input->getAxis(InputAxis::MOUSE_X) * sensitivity;
+		float deltaY = input->getAxis(InputAxis::MOUSE_Y) * sensitivity;
+
+		cameraYaw += deltaX;
+		cameraPitch = glm::clamp(cameraPitch + deltaY, -90.0f, 90.0f);
+
+		// wrap left/right to 0-360
+		if (cameraYaw > 360)
+		{
+			cameraYaw = glm::mod(cameraYaw, 360.0f);
+		}
+		else if (cameraYaw < 0)
+		{
+			cameraYaw = cameraYaw + 360.0f * (1 + cameraYaw / -360.0f);
+		}
+
+		camera->setRotation(cameraPitch, cameraYaw, 0);
+	}
+
+	// Rotate the object if the left mouse button is being held down
+	if (input->isDown(xwin::MouseInput::Left))
+	{
+		auto scene = renderer.getScene();
+		
+		auto object = *scene->begin();
+
+		float sensitivity = 0.2;
+		float deltaX = input->getAxis(InputAxis::MOUSE_X) * sensitivity;
+		float deltaY = input->getAxis(InputAxis::MOUSE_Y) * sensitivity;
+
+		if (deltaX)
+		{
+			object->addRotation(0, -deltaX, 0);
+		}
+		if (deltaY)
+		{
+			object->rotateAround(camera->getRight(), -deltaY);
+		}
 	}
 }
