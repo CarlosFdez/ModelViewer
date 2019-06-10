@@ -2,13 +2,6 @@
 
 #include <glm/gtc/matrix_transform.hpp>
 
-// helper to facilitate wraparound
-template<typename T>
-T wraparound(T value, T minValue, T maxValue)
-{
-	if (value < minV)
-}
-
 SceneObjectPtr Scene::createObject(const MeshResourcePtr& mesh)
 {
 	SceneObjectPtr newObject(new SceneObject());
@@ -41,7 +34,6 @@ void SceneObject::setScale(float x, float y, float z)
 
 void SceneObject::setRotation(const glm::vec3& eulerAngles)
 {
-	// todo: Ensure rotates around Z, then X, then Y.
 	auto angles = glm::mod(eulerAngles, 360.0f);
 	this->rotation = glm::quat(glm::radians(eulerAngles));
 	dirty = true;
@@ -71,14 +63,13 @@ glm::vec3 SceneObject::getRotation() const
 
 const glm::mat4x4& SceneObject::getModelMatrix()
 {
+	// Return an already generated one if nothing has changed.
 	if (!dirty)
 	{
 		return modelMatrix;
 	}
 
-	//auto world_m = glm::translate(glm::mat4x4(1.0f), glm::vec3(0, -0.5f, 3.0f));
-	//world_m = glm::scale(world_m, glm::vec3(0.3f));
-
+	// Matrices are applied from right to left (column-major)
 	auto translation = glm::translate(glm::mat4x4(1.0f), this->worldPosition);
 	auto rotate = glm::toMat4(this->rotation);
 	auto scale = glm::scale(glm::mat4x4(1.0f), this->scaling);

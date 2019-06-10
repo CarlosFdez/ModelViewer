@@ -41,8 +41,7 @@ void xmain(int argc, const char** argv)
 	}
 
 	// Create renderer and scene based on window
-	xwin::WindowDesc desc = window.getDesc();
-	Renderer renderer(window.getDelegate().hwnd, desc.width, desc.height);
+	Renderer renderer(window);
 	renderer.setScene(createScene(renderer.getResourceManager()));
 
 	// store for frame counting and limiting fps
@@ -61,48 +60,24 @@ void xmain(int argc, const char** argv)
 		while (!eventQueue.empty())
 		{
 			const xwin::Event& event = eventQueue.front();
+			renderer.handleEvent(event);
 
 			if (event.type == xwin::EventType::Close)
 			{
 				window.close();
 				isRunning = false;
+				break;
 			}
-			else if (event.type == xwin::EventType::Resize)
+			else
 			{
-				// resize renderer
-				xwin::ResizeData data = event.data.resize;
-				renderer.resize(data.width, data.height);
-				shouldRender = false;
-			}
-			else if (event.type == xwin::EventType::Focus)
-			{
-				xwin::FocusData data = event.data.focus;
-				if (!data.focused)
-				{
-					std::cout << "Window unfocused" << std::endl;
-					renderer.getInputManager()->notifyLostFocus();
-				}
-			}
-			else if (event.type == xwin::EventType::Keyboard)
-			{
-				xwin::KeyboardData data = event.data.keyboard;
-				input->notifyKeyStateChange(data.key, data.state);
-			}
-			else if (event.type == xwin::EventType::MouseInput)
-			{
-				xwin::MouseInputData data = event.data.mouseInput;
-				input->notifyMouseButtonChange(data.button, data.state);
-			}
-			else if (event.type == xwin::EventType::MouseRaw)
-			{
-				xwin::MouseRawData data = event.data.mouseRaw;
-				input->notifyMouseRawInput(data.deltax, data.deltay);
+				renderer.handleEvent(event);
 			}
 
 			eventQueue.pop();
 		}
 
 		// find out how much time has passed since the last render
+		// If we've waited enough, update the previous time and continue the main loop
 		auto newTime = std::chrono::high_resolution_clock::now();
 		float elapsed = std::chrono::duration<float>(newTime - previousTime).count();
 		float minElapsed = 1.0f / maxFps;
@@ -115,14 +90,13 @@ void xmain(int argc, const char** argv)
 
 		// perform update step
 		performUpdate(renderer, elapsed);
+		input->notifyUpdateFinished(); // todo: consolidate
 
 		// Render view
 		if (shouldRender)
 		{
 			renderer.render();
 		}
-
-		input->notifyRenderFinished();
 	}
 }
 

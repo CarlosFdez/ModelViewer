@@ -22,8 +22,11 @@ typedef std::shared_ptr<SceneObject> SceneObjectPtr;
 class Scene
 {
 public:
+	// creates a scene object, registers it, and returns it.
+	// Todo: Allow a <T> param to specify a class type. Make MeshResourcePtr optional.
 	SceneObjectPtr createObject(const MeshResourcePtr& mesh);
 
+	// Returns iterator to iterate over the list of registered objects.
 	std::vector<SceneObjectPtr>::const_iterator begin() const
 	{ 
 		return this->objects.begin();
@@ -34,10 +37,11 @@ public:
 		return this->objects.end();
 	}
 private:
+	// list of stored scene objects
 	std::vector<SceneObjectPtr> objects;
 };
 
-// A single object in a scene. Must be created via Scene::createObject.
+// Represents an object in a scene. Must be created via Scene::createObject.
 class SceneObject
 {
 public:
@@ -51,17 +55,19 @@ public:
 	// Sets the objects's position
 	void setPosition(const glm::vec3& position);
 
-	// Sets the object's location
+	// Sets the object's position
 	void setPosition(float x, float y, float z)
 	{
 		setPosition({ x, y, z });
 	}
 
-	// Moves the object by a certain amount
+	// Moves the object's position by a certain amount
 	void move(const glm::vec3& moveDelta);
 
+	// Sets the scaling for each object per axis. Applied before rotation
 	void setScale(float x, float y, float z);
 
+	// Sets the object's scaling to a value. Applied before rotation
 	void setScale(float s)
 	{
 		this->setScale(s, s, s);
@@ -76,10 +82,16 @@ public:
 		this->setRotation({ x, y, z });
 	}
 
+	// Further rotates this object by an additional amount.
+	// If the object hasn't been rotated yet, it is equal to setRotation().
 	void addRotation(const glm::vec3& eulerAngles);
 
+	// Further rotates this object by an additional amount.
+	// If the object hasn't been rotated yet, it is equal to setRotation().
 	void addRotation(int x, int y, int z);
 
+	// Rotates this object around an axis of rotation by a certain number of degrees.
+	// Rotations around an axis follow a left-hand rule.
 	void rotateAround(const glm::vec3& axisOfRotation, float angleDegrees);
 
 	// Returns the current rotation in euler angles (in degrees)
@@ -99,14 +111,15 @@ public:
 		return rotation * up;
 	}
 
+	// Gets the camera's right direction.
 	glm::vec3 getRight() const
 	{
 		glm::vec3 right = { 1.0f, 0.0f, 0.0f };
 		return rotation * right;
 	}
 
-	// todo: rotation
-
+	// Returns the model matrix used to position this scene object into the world.
+	// Given to the shader to move the vertices during the draw call.
 	const glm::mat4x4& getModelMatrix();
 
 private:
@@ -114,10 +127,10 @@ private:
 	// could be made public in the future
 	void applyRotation(const glm::quat& q);
 
-	// The model matrix. Defaults to identity
+	// The model matrix's cached value. Defaults to identity
 	glm::mat4x4 modelMatrix = glm::mat4x4(1.0f);
 
-	// Whether the model matrix needs to be recreated
+	// Whether the model matrix cached value is dirty and needs to be recreated
 	bool dirty = false;
 
 	glm::vec3 worldPosition = { 0, 0, 0 };

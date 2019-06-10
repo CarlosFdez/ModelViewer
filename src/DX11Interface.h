@@ -24,7 +24,6 @@ struct AdapterData
 	DXGI_ADAPTER_DESC description;
 };
 
-
 // Class used to encapsulate a vertex buffer, which is used to
 // assign vertices to the pipeline for a single draw call.
 // Note that to connect them into triangles, an IndexBuffer is required.
@@ -45,7 +44,6 @@ private:
 	const unsigned stride;
 	const unsigned offset = 0;
 };
-
 
 // Encapsulates an index buffer, which is used to connect vertices into triangles.
 // Must be inserted into the pipeline before the draw call.
@@ -106,14 +104,12 @@ typedef std::shared_ptr<IndexBuffer> IndexBufferPtr;
 template <typename T>
 using ConstantBufferPtr = std::shared_ptr<ConstantBuffer<T>>;
 
-
-// Buffers associated with a particular mesh
+// Primitive Buffers associated with a particular mesh.
 struct D3D11PrimitiveBuffers
 {
 	VertexBufferPtr vertexBuffer;
 	IndexBufferPtr indexBuffer;
 };
-
 
 // Main class used to interface with the DirectX 11 runtime.
 // Contains the driver and context classes used to perform rendering,
@@ -121,12 +117,14 @@ struct D3D11PrimitiveBuffers
 class DX11Interface
 {
 public:
-	ID3D11Device* getDevice() const { return device.Get(); }
-	ID3D11DeviceContext* getContext() const { return context.Get(); }
-
+	// Initializes the DX11Interface, including the device and context
 	void initialize(HWND hwnd, unsigned width, unsigned height, bool windowed);
 
+	// Resizes the render target and viewport to a new width and height.
 	void resize(unsigned width, unsigned height);
+
+	ID3D11Device* getDevice() const { return device.Get(); }
+	ID3D11DeviceContext* getContext() const { return context.Get(); }
 
 	// Reads all adapters. Corresponds to display out devices
 	std::vector<AdapterData> readAdapters();
@@ -134,9 +132,11 @@ public:
 	// Clears the view to a specific color. Call before each render
 	void clearView(std::array<float, 4> color);
 
-	// Presents the rendered view for display
+	// Presents the rendered view for display.
+	// Supply a vsync flag if the presentation should wait for vertical sync.
 	void present(bool vsync);
 
+	// Helper that constructs a DX11 Constant Buffer of a particular size
 	template <typename T>
 	ConstantBufferPtr<T> createConstantBuffer(unsigned blockSize)
 	{
@@ -172,7 +172,10 @@ public:
 	}
 
 private:
+	// Internal function to initialize or update the render function to a particular size.
 	void updateRenderTarget(unsigned width, unsigned height);
+
+	// Internal function to initialize or update the render function to a particular size.
 	void updateViewport(unsigned width, unsigned height);
 
 	ComPtr<IDXGIFactory> factory;

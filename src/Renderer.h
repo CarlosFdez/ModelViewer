@@ -29,27 +29,37 @@ struct ConstantBufferData
 
 const size_t ConstantBufferData_BLOCKSIZE = 128;
 
+// Main class used to link with the graphics runtime as well as manage
+// and render a scene. Also contains pointers to various subsystems
+// like the resource manager and input manager.
+// Assumes that its going to be run through crosswindow
 class Renderer
 {
 public:
-	Renderer(HWND hwnd, unsigned width, unsigned height);
+	explicit Renderer(xwin::Window& window);
 	Renderer(const Renderer& other) = delete;
 	~Renderer();
 
-	// Initialize what we'll be drawing
-	// This will be refactored into a dynamic scene later
+	// Set the scene that the renderer will render
 	void setScene(ScenePtr scene);
 
 	// Sets the size of the renderer. 
 	void resize(unsigned width, unsigned height);
 
+	// Enable or disable vsync
 	void setVsync(bool vsync) { this->vsync = vsync; }
+
+	// handles an XWindow event. The main message loop is not handled by this class.
+	// This class does not handle the following events. These must be handled separately:
+	// - Close Event
+	void handleEvent(const xwin::Event& event);
 
 	Camera* getCamera() const { return camera.get(); }
 	ScenePtr getScene() const { return scene; }
 	ResourceManager* getResourceManager() { return resourceManager.get();  }
 	InputManager* getInputManager() { return inputManager.get(); }
 
+	// Perform a render of the current scene
 	void render();
 
 	unsigned getWidth() const { return width; }

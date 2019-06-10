@@ -2,6 +2,7 @@
 #include "InputManager.h"
 #include "InputManager.h"
 
+// helper to return a map's value if it exists, or some default value.
 // comes from https://stackoverflow.com/a/2333816
 template <template<class, class, class...> class C, typename K, typename V, typename... Args>
 V getOrDefault(const C<K, V, Args...>& m, const K& key, const V& defVal)
@@ -41,7 +42,7 @@ float InputManager::getAxis(const InputAxis& inputAxis)
 	return getOrDefault(this->axisValues, inputAxis, 0.0f);
 }
 
-void InputManager::notifyRenderFinished()
+void InputManager::notifyUpdateFinished()
 {
 	// axis values are cleared before each frame
 	axisValues.clear();

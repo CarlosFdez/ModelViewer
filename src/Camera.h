@@ -24,6 +24,12 @@ public:
 		this->aspectRatio = aspectRatio;
 	}
 
+	// Sets the camera's aspect ratio. Use when the rendering area is resized
+	void setAspectRatio(unsigned width, unsigned height)
+	{
+		setAspectRatio(static_cast<float>(width) / static_cast<float>(height));
+	}
+
 	// Sets the camera's near clip range and view distance
 	void setClipRange(float nearZ, float farZ)
 	{
@@ -32,7 +38,9 @@ public:
 	}
 
 	// Returns the view projection matrix that can be used to modify all other objects to
-	// be within range of the camera in the aspect ratio
+	// be within range of the camera in the aspect ratio.
+	// Because of how often a camera is expected to update, this value is not cached.
+	// Store the result in a variable before rendering the frame.
 	glm::mat4x4 getViewProjectionMatrix();
 
 private:

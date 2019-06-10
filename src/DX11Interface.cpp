@@ -131,7 +131,7 @@ void DX11Interface::resize(unsigned width, unsigned height)
 	//	DXGI_MODE_SCANLINE_ORDER_UNSPECIFIED,
 	//	DXGI_MODE_SCALING_UNSPECIFIED
 	//};
-
+	// 
 	//// resize the buffer. Using 0 for width and height makes the sizing automatic
 	//swapchain->ResizeTarget(&newMode);
 
